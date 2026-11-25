@@ -127,7 +127,16 @@ export async function renderOutput(main, { id, preloaded }) {
         await navigator.clipboard.writeText(o.content);
         toast('Copied to clipboard (Markdown).', 'ok');
       } else if (a === 'md' || a === 'html') {
-        window.location.href = `/api/outputs/${o.id}/download?format=${a}`;
+        const res = await fetch(`/api/outputs/${o.id}/download?format=${a}`);
+        const blob = await res.blob();
+        const name = /filename="([^"]+)"/.exec(res.headers.get('content-disposition') || '')?.[1] || `document.${a}`;
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(link.href), 2000);
       } else if (a === 'print') {
         window.print();
       } else if (a === 'regen') {

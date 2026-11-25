@@ -18,8 +18,9 @@ const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pps-e2e-'));
 const fx = path.join(dataDir, 'fixtures');
 execFileSync(process.execPath, [path.join(root, 'tests/fixtures/make-fixtures.mjs'), fx]);
 
+const SINGLE = process.env.PPS_SINGLE_FILE ? path.resolve(process.env.PPS_SINGLE_FILE) : null;
 const PORT = 3200 + Math.floor(Math.random() * 500);
-const server = spawn(process.execPath, ['server/index.js'], {
+const server = SINGLE ? { kill() {}, stdout: { on() {} }, stderr: { on() {} } } : spawn(process.execPath, ['server/index.js'], {
   cwd: root,
   env: { ...process.env, PORT: String(PORT), DATA_DIR: dataDir, TEST_FAKE_AI_MODULE: 'tests/e2e/fake-ai.js', ANTHROPIC_API_KEY: '' },
   stdio: ['ignore', 'pipe', 'pipe'],
@@ -27,8 +28,9 @@ const server = spawn(process.execPath, ['server/index.js'], {
 let serverLog = '';
 server.stdout.on('data', (d) => (serverLog += d));
 server.stderr.on('data', (d) => (serverLog += d));
-await new Promise((r) => setTimeout(r, 1500));
-const BASE = `http://localhost:${PORT}`;
+if (!SINGLE) await new Promise((r) => setTimeout(r, 1500));
+const BASE = SINGLE ? `file://${SINGLE}` : `http://localhost:${PORT}`;
+const at = (hash) => (SINGLE ? `${BASE}${hash}` : `${BASE}/${hash}`);
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1360, height: 900 }, deviceScaleFactor: 1 });
@@ -40,7 +42,7 @@ const step = (s) => console.log(`• ${s}`);
 
 try {
   step('Dashboard');
-  await page.goto(BASE);
+  await page.goto(at(''));
   await page.getByRole('heading', { name: 'What are you studying today?' }).waitFor();
   await shot('01-dashboard');
 
@@ -155,7 +157,7 @@ try {
   await page.locator('.qcard').waitFor({ timeout: 20000 });
 
   step('Learning mode quiz: hint, working, explain step, retry, reveal');
-  await page.goto(`${BASE}/#/workspaces`);
+  await page.goto(at('#/workspaces'));
   await page.locator('.card.link').first().click();
   await page.locator('.stepper [data-step="mode"]').click();
   await page.locator('[data-pickmode="quiz"]').click();
@@ -183,7 +185,7 @@ try {
   await page.getByText('Answer', { exact: true }).waitFor();
 
   step('Compare sources needs two sources and works');
-  await page.goto(`${BASE}/#/workspaces`);
+  await page.goto(at('#/workspaces'));
   await page.locator('.card.link').first().click();
   await page.locator('.stepper [data-step="mode"]').click();
   await page.locator('[data-pickmode="compare"]').click();
@@ -194,7 +196,7 @@ try {
   assert.match(await page.locator('h1').first().innerText(), /Source comparison/);
 
   step('Study mode');
-  await page.goto(`${BASE}/#/workspaces`);
+  await page.goto(at('#/workspaces'));
   await page.locator('.card.link').first().click();
   await page.locator('.stepper [data-step="mode"]').click();
   await page.locator('[data-pickmode="study"]').click();
@@ -209,7 +211,7 @@ try {
 
   step('Mobile layout');
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(`${BASE}/#/`);
+  await page.goto(at('#/'));
   await page.getByRole('heading', { name: 'What are you studying today?' }).waitFor();
   await shot('15-mobile-dashboard');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);

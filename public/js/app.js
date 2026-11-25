@@ -274,7 +274,7 @@ async function renderSettings(main) {
     <div class="page-head"><div><h1>Settings</h1><div class="sub">Connection status and how Peter Parker Study works.</div></div></div>
     <div class="card pad-lg stack">
       <div class="card-title"><h2>AI connection</h2>${s.ai ? '<span class="badge ok"><span class="dot"></span>Connected</span>' : '<span class="badge warn"><span class="dot"></span>Not connected</span>'}</div>
-      ${s.ai
+      ${s.browserMode ? browserKeyForm(s) : s.ai
         ? `<p>The server has an Anthropic API key. Model: <span class="mono">${esc(s.model)}</span>. Refusal fallback: ${s.refusalFallback ? 'on' : 'off'}. The key stays on the server and is never sent to your browser.</p>`
         : `<p>AI features need an Anthropic API key on the <strong>server</strong>. Keys are never entered in the browser.</p>
            <ol class="small" style="padding-left:18px">
@@ -304,6 +304,21 @@ async function renderSettings(main) {
       <p style="margin:0">Citations such as <span class="cite">S1 p.12</span> open the exact page text. Each document shows a citation check confirming that every citation points to a page you selected. Extra explanations that are not in your material appear in purple “Beyond the source” boxes.</p>
       <p style="margin:0">Large selections over ${Math.round(s.singlePassMaxChars / 1000)}k characters are processed in parts and then combined, so nothing is silently cut off.</p>
     </div></div>`;
+  main.querySelector('#key-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      await api.post('/api/local/settings', { apiKey: main.querySelector('#api-key').value.trim(), model: main.querySelector('#api-model').value.trim() });
+      toast('Saved.', 'ok');
+      renderSettings(main);
+    } catch (err) {
+      toastError(err);
+    }
+  });
+  main.querySelector('#key-remove')?.addEventListener('click', async () => {
+    await api.post('/api/local/settings', { apiKey: '' });
+    toast('Key removed from this browser.');
+    renderSettings(main);
+  });
   main.querySelectorAll('#theme button').forEach((b) =>
     b.addEventListener('click', () => {
       try {
@@ -313,6 +328,17 @@ async function renderSettings(main) {
       renderSettings(main);
     }),
   );
+}
+
+function browserKeyForm(s) {
+  return `${s.ai ? `<p>Your Anthropic API key is saved in this browser only. Model: <span class="mono">${esc(s.model)}</span>.</p><div class="row"><button class="btn danger" id="key-remove" type="button">${icon('trash')} Remove key</button></div>` : '<p>Paste your Anthropic API key to turn on research, summaries, quizzes, the tutor and OCR. Get one at <a href="https://platform.claude.com/" target="_blank" rel="noopener">platform.claude.com</a> → API Keys.</p>'}
+    <form id="key-form" class="stack" style="margin-top:6px">
+      ${s.ai ? '' : '<div class="field"><label for="api-key">API key</label><input id="api-key" class="input" type="password" autocomplete="off" placeholder="sk-ant-…"></div>'}
+      <div class="field"><label for="api-model">Model</label><input id="api-model" class="input" value="${esc(s.model)}"></div>
+      ${s.ai ? '<input id="api-key" type="hidden" value="__keep__">' : ''}
+      <div><button class="btn primary" type="submit">Save</button></div>
+      <p class="muted small" style="margin:0">The key is stored only in this browser (on this device) and is sent only to Anthropic. Anyone using this browser profile could see it, so don't use this on a shared computer. Your books and results are also stored only in this browser.</p>
+    </form>`;
 }
 
 // ---------------- boot ----------------

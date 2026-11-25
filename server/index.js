@@ -210,6 +210,7 @@ async function sseRun(res, fn) {
 app.get('/api/status', (req, res) => {
   res.json({
     ai: aiAvailable(),
+    browserMode: Boolean(config.browserMode),
     aiKeyConfigured: aiConfigured(),
     model: config.model,
     refusalFallback: config.refusalFallback,

@@ -9,7 +9,8 @@
     "dev": "node --watch server/index.js",
     "test": "node --test tests/unit/*.test.js",
     "test:e2e": "node tests/e2e/run.mjs",
-    "fixtures": "node tests/fixtures/make-fixtures.mjs"
+    "fixtures": "node tests/fixtures/make-fixtures.mjs",
+    "build:single": "node build/build-single.mjs"
   },
   "engines": {
     "node": ">=22.13"
@@ -25,5 +26,10 @@
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.5.438",
     "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "buffer": "^6.0.3",
+    "esbuild": "^0.28.2",
+    "path-browserify": "^1.0.1"
   }
 }

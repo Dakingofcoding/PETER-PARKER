@@ -78,6 +78,18 @@ export async function stream(url, body, onEvent, { signal } = {}) {
 
 /** Upload one file with progress (XHR gives upload progress events; fetch does not). */
 export function uploadFile(url, file, fields = {}, onProgress) {
+  if (globalThis.PPS_LOCAL) {
+    // Single-file build: the "server" runs in this page, so there is no network upload.
+    const fd = new FormData();
+    for (const [k, v] of Object.entries(fields)) if (v !== undefined && v !== null && v !== '') fd.append(k, v);
+    fd.append('file', file, file.name);
+    onProgress?.(1);
+    return fetch(url, { method: 'POST', body: fd }).then(async (res) => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new ApiError(data.error || `Upload failed (${res.status})`, res.status, data.code);
+      return data;
+    });
+  }
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     const fd = new FormData();

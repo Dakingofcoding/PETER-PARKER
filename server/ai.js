@@ -16,7 +16,9 @@ export class UserFacingError extends Error {
 export class AINotConfiguredError extends UserFacingError {
   constructor() {
     super(
-      'AI features are not connected. Add ANTHROPIC_API_KEY to the .env file on the server and restart it (see Settings for setup steps).',
+      config.browserMode
+        ? 'AI features are not connected. Paste your Anthropic API key in Settings.'
+        : 'AI features are not connected. Add ANTHROPIC_API_KEY to the .env file on the server and restart it (see Settings for setup steps).',
       { status: 503, code: 'ai_not_configured' },
     );
   }
@@ -28,6 +30,9 @@ let injectedClient = null; // used only by the automated test-suite
 export function setClientForTests(fake) {
   injectedClient = fake;
 }
+export function resetClient() {
+  client = null;
+}
 export function aiAvailable() {
   return Boolean(injectedClient) || aiConfigured();
 }
@@ -35,7 +40,7 @@ export function aiAvailable() {
 function getClient() {
   if (injectedClient) return injectedClient;
   if (!aiConfigured()) throw new AINotConfiguredError();
-  if (!client) client = new Anthropic({ maxRetries: 3 });
+  if (!client) client = new Anthropic({ maxRetries: 3, ...(config.clientOptions ? config.clientOptions() : {}) });
   return client;
 }
 

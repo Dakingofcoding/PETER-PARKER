@@ -15,7 +15,19 @@ The front end is plain HTML, CSS and JavaScript. The back end is Node.js with Ex
 
 ---
 
-## Quick start
+## Easiest: one HTML file (no installs)
+
+Download **`dist/peter-parker-study.html`** and double-click it. It opens in your browser (Chrome, Edge, Firefox or Safari) and the whole app runs inside that page.
+
+1. Open **Settings** and paste your Anthropic API key (get one at <https://platform.claude.com/> → API Keys).
+2. Start a workspace, add books or upload files, and study.
+
+Notes for the single-file version:
+- Your key, books and results are saved **only in this browser on this device**, not in the file. Don't use it on a shared computer.
+- Browsers can only download files from websites that allow it. When research finds a source the browser can't download, the app says so and links to it, so you can save the file and upload it.
+- Rebuild it after code changes with `npm run build:single`.
+
+## Quick start (server version, needs Node.js)
 
 Requirements: **Node.js 22.13 or newer**.
 
