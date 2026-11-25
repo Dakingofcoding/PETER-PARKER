@@ -1,0 +1,29 @@
+{
+  "name": "peter-parker-study",
+  "version": "1.0.0",
+  "description": "Peter Parker Study: AI-powered book research, summarization, tutoring and quizzes",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test tests/unit/*.test.js",
+    "test:e2e": "node tests/e2e/run.mjs",
+    "fixtures": "node tests/fixtures/make-fixtures.mjs"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.14.0",
+    "dompurify": "^3.5.0",
+    "express": "^5.3.0",
+    "jszip": "^3.10.2",
+    "marked": "^18.3.0",
+    "multer": "^2.5.0",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.5.438",
+    "zod": "^4.6.7"
+  }
+}
