@@ -33,7 +33,11 @@ const int = (v, d) => {
 export const config = {
   port: int(process.env.PORT, 3000),
   dataDir: path.resolve(ROOT, process.env.DATA_DIR || 'data'),
-  model: process.env.ANTHROPIC_MODEL || 'claude-opus-5-5',
+  provider: (process.env.AI_PROVIDER || 'anthropic').toLowerCase() === 'openai' ? 'openai' : 'anthropic',
+  baseURL: process.env.AI_BASE_URL || '',
+  model: process.env.AI_MODEL || process.env.ANTHROPIC_MODEL || 'claude-opus-5-5',
+  apiKey: () => process.env.AI_API_KEY || process.env.ANTHROPIC_API_KEY || '',
+  clientOptions: () => (process.env.AI_BASE_URL && (process.env.AI_PROVIDER || 'anthropic') !== 'openai' ? { baseURL: process.env.AI_BASE_URL, apiKey: process.env.AI_API_KEY || process.env.ANTHROPIC_API_KEY } : {}),
   refusalFallback: (process.env.AI_REFUSAL_FALLBACK || 'default').toLowerCase() !== 'off',
   googleBooksKey: process.env.GOOGLE_BOOKS_API_KEY || '',
   maxUploadBytes: int(process.env.MAX_UPLOAD_MB, 150) * 1024 * 1024,
@@ -46,7 +50,7 @@ export const config = {
 
 export function aiConfigured() {
   // The SDK also resolves ANTHROPIC_AUTH_TOKEN; accept either.
-  return Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+  return Boolean(process.env.AI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
 }
 
 fs.mkdirSync(config.dataDir, { recursive: true });

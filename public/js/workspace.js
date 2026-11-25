@@ -216,7 +216,7 @@ export async function renderWorkspace(main, { id, step }) {
     const bs = books();
     return `<div class="stack lg">
       <div class="card pad-lg"><div class="card-title"><h2>Add a book</h2></div>
-        <form id="book-form">${bookFormHtml('bf')}<div class="row" style="margin-top:14px"><button class="btn primary" type="submit">${icon('search')} Find this book</button><span class="muted small">${state.status?.ai ? 'Catalogues + AI web research' : 'Catalogue search only (AI not connected)'}</span></div></form></div>
+        <form id="book-form">${bookFormHtml('bf')}<div class="row" style="margin-top:14px"><button class="btn primary" type="submit">${icon('search')} Find this book</button><span class="muted small">${state.status?.webResearch ? 'Catalogues + AI web research' : 'Catalogue search only (AI not connected)'}</span></div></form></div>
       ${bs.map(bookCard).join('')}
       ${foot(null, bs.length ? 'research' : 'uploads', bs.length ? 'Continue to research' : 'Skip to uploads')}</div>`;
   }

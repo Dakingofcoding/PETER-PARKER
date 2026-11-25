@@ -2,6 +2,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { config, aiConfigured } from './config.js';
+import { CompatError, compatStreamText, compatGenerateJSON, compatWebAgentUnavailable } from './ai-compat.js';
+
+const compat = () => !injectedClient && config.provider === 'openai';
 
 export class UserFacingError extends Error {
   constructor(userMessage, { status = 500, code = 'error', cause } = {}) {
@@ -48,7 +51,7 @@ function getClient() {
 // enabled by default (AI_REFUSAL_FALLBACK=off disables it).
 function baseParams() {
   const p = { model: config.model };
-  if (config.refusalFallback) {
+  if (config.refusalFallback && !config.baseURL) {
     p.betas = ['server-side-fallback-2026-07-01'];
     p.fallbacks = 'default';
   }
@@ -57,6 +60,7 @@ function baseParams() {
 
 export function translateError(err) {
   if (err instanceof UserFacingError) return err;
+  if (err instanceof CompatError) return new UserFacingError(err.userMessage, { status: err.status || 502, code: 'ai_provider', cause: err });
   if (err instanceof Anthropic.AuthenticationError) {
     return new UserFacingError('The Anthropic API key was rejected. Check ANTHROPIC_API_KEY in .env and restart the server.', { status: 502, code: 'ai_auth', cause: err });
   }
@@ -104,6 +108,14 @@ export const cachedSystem = (text) => [{ type: 'text', text, cache_control: { ty
  * Returns the final text (authoritative; replaces streamed deltas).
  */
 export async function streamText({ system, messages, maxTokens = 64000, effort = 'medium', onText, signal }) {
+  if (compat()) {
+    if (!aiConfigured()) throw new AINotConfiguredError();
+    try {
+      return await compatStreamText({ system, messages, maxTokens, onText, signal });
+    } catch (err) {
+      throw translateError(err);
+    }
+  }
   const c = getClient();
   try {
     const stream = c.beta.messages.stream(
@@ -125,6 +137,14 @@ export async function streamText({ system, messages, maxTokens = 64000, effort =
 export async function generateJSON({ system, messages, schema, maxTokens = 32000, effort = 'medium', signal }) {
   const c = getClient();
   const fmt = zodOutputFormat(schema);
+  if (compat()) {
+    if (!aiConfigured()) throw new AINotConfiguredError();
+    try {
+      return await compatGenerateJSON({ system, messages, schema, jsonSchema: fmt.schema, maxTokens, signal });
+    } catch (err) {
+      throw translateError(err);
+    }
+  }
   let lastErr;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -173,6 +193,13 @@ export async function runWebAgent({
   signal,
 }) {
   const c = getClient();
+  if (compat()) {
+    try {
+      compatWebAgentUnavailable();
+    } catch (err) {
+      throw translateError(err);
+    }
+  }
   const fmt = zodOutputFormat(schema);
   const tools = [
     { type: 'web_search_20260209', name: 'web_search', max_uses: searchUses },

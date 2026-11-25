@@ -19,7 +19,10 @@ The front end is plain HTML, CSS and JavaScript. The back end is Node.js with Ex
 
 Download **`dist/peter-parker-study.html`** and double-click it. It opens in your browser (Chrome, Edge, Firefox or Safari) and the whole app runs inside that page.
 
-1. Open **Settings** and paste your Anthropic API key (get one at <https://platform.claude.com/> → API Keys).
+1. Open **Settings**, choose your provider and paste your API key:
+   - **Anthropic (Claude)**: all features. Get a key at <https://platform.claude.com/>.
+   - **Radox AI**: summaries, quizzes, tutor and photo OCR. Enter a model name from your Radox AI model list. Web research for books and OCR of scanned PDFs need an Anthropic key.
+   - **Other (OpenAI-compatible)**: any `/chat/completions` service; enter its base URL and model.
 2. Start a workspace, add books or upload files, and study.
 
 Notes for the single-file version:

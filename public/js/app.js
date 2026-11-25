@@ -269,7 +269,7 @@ async function renderSettings(main) {
   try {
     theme = localStorage.getItem('pps-theme') || 'system';
   } catch { /* ignore */ }
-  const feat = (ok, name, detail) => `<tr><td>${ok ? '<span class="badge ok">Available</span>' : '<span class="badge warn">Needs AI key</span>'}</td><td><strong>${name}</strong><div class="muted small">${detail}</div></td></tr>`;
+  const feat = (ok, name, detail, missing = 'Needs AI key') => `<tr><td>${ok ? '<span class="badge ok">Available</span>' : `<span class="badge warn">${missing}</span>`}</td><td><strong>${name}</strong><div class="muted small">${detail}</div></td></tr>`;
   main.innerHTML = `<div class="page narrow">
     <div class="page-head"><div><h1>Settings</h1><div class="sub">Connection status and how Peter Parker Study works.</div></div></div>
     <div class="card pad-lg stack">
@@ -289,7 +289,7 @@ async function renderSettings(main) {
       ${feat(true, 'Uploads & extraction', 'PDF (per page, printed page labels), Word, PowerPoint (per slide, with notes), EPUB (per chapter), TXT/Markdown/HTML and pasted text.')}
       ${feat(true, 'Page, chapter and slide selection', 'Ranges, exclusions, chapters, printed vs PDF numbering, missing-page reports.')}
       ${feat(true, 'Book catalogue lookup', 'Open Library, Google Books and Project Gutenberg identify books and find public-domain full texts.')}
-      ${feat(s.ai, 'Web research', 'Claude searches the web to confirm the edition and find legitimate sources (publisher samples, open textbooks, previews), then the server downloads what is genuinely accessible.')}
+      ${feat(s.webResearch, 'Web research', 'Claude searches the web to confirm the edition and find legitimate sources (publisher samples, open textbooks, previews), then the server downloads what is genuinely accessible.', s.ai ? 'Needs Anthropic key' : 'Needs AI key')}
       ${feat(s.ai, 'OCR of scanned pages and photos', 'Pages without a text layer are read with Claude’s vision.')}
       ${feat(s.ai, 'Summaries at five detail levels, combined guides, comparisons, revision guides', 'Without a key you get a clearly labelled offline extractive version.')}
       ${feat(s.ai, 'Universal quizzes with intelligent marking', 'Without a key you get a basic fill-in-the-blank quiz.')}
@@ -307,12 +307,32 @@ async function renderSettings(main) {
   main.querySelector('#key-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
-      await api.post('/api/local/settings', { apiKey: main.querySelector('#api-key').value.trim(), model: main.querySelector('#api-model').value.trim() });
+      const prov = PROVIDERS.find((p) => p.id === (main.querySelector('#prov .on')?.dataset.prov || 'anthropic'));
+      const key = main.querySelector('#api-key').value.trim();
+      const model = main.querySelector('#api-model').value.trim();
+      const baseURL = prov.id === 'other' ? main.querySelector('#api-base').value.trim() : prov.baseURL;
+      if (!key && !s.ai) return toast('Paste your API key first.', 'bad');
+      if (prov.provider === 'openai' && !model) return toast('Enter a model name from your provider.', 'bad');
+      if (prov.id === 'other' && !/^https?:\/\//.test(baseURL)) return toast('Enter the provider\u2019s base URL (starting with https://).', 'bad');
+      await api.post('/api/local/settings', { apiKey: key || '__keep__', model: prov.provider === 'anthropic' && model === '' ? 'claude-opus-5-5' : model, provider: prov.provider, baseURL });
       toast('Saved.', 'ok');
       renderSettings(main);
     } catch (err) {
       toastError(err);
     }
+  });
+  main.querySelector('#prov')?.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-prov]');
+    if (!b) return;
+    const p = PROVIDERS.find((x) => x.id === b.dataset.prov);
+    main.querySelectorAll('#prov button').forEach((x) => x.classList.toggle('on', x === b));
+    main.querySelector('#prov-help').innerHTML = p.help;
+    main.querySelector('#base-field').style.display = p.id === 'other' ? '' : 'none';
+    main.querySelector('#api-key').placeholder = p.keyHint;
+    const m = main.querySelector('#api-model');
+    if (p.id === 'anthropic' && !m.value) m.value = 'claude-opus-5-5';
+    if (p.id !== 'anthropic' && /^claude-opus/.test(m.value)) m.value = '';
+    m.placeholder = p.id === 'anthropic' ? 'claude-opus-5-5' : 'model name from your provider';
   });
   main.querySelector('#key-remove')?.addEventListener('click', async () => {
     await api.post('/api/local/settings', { apiKey: '' });
@@ -330,14 +350,25 @@ async function renderSettings(main) {
   );
 }
 
+const PROVIDERS = [
+  { id: 'anthropic', label: 'Anthropic (Claude)', provider: 'anthropic', baseURL: '', keyHint: 'sk-ant-…', help: 'Get a key at <a href="https://platform.claude.com/" target="_blank" rel="noopener">platform.claude.com</a> → API Keys. All features, including web research for books.' },
+  { id: 'radox', label: 'Radox AI', provider: 'openai', baseURL: 'https://radoxai.com/v1', keyHint: 'cc_…', help: 'Get a key at <a href="https://radoxai.com/" target="_blank" rel="noopener">radoxai.com</a>. Enter a model name from your Radox AI model list. Summaries, quizzes, the tutor and photo OCR work; web research for books and OCR of scanned PDFs need an Anthropic key.' },
+  { id: 'other', label: 'Other (OpenAI-compatible)', provider: 'openai', baseURL: '', keyHint: 'your key', help: 'Any service with an OpenAI-style /chat/completions API (for example OpenAI or OpenRouter). Enter its base URL and a model name.' },
+];
+function currentProvider(s) {
+  if (s.provider !== 'openai') return 'anthropic';
+  return /radoxai\.com/i.test(s.baseURL || '') ? 'radox' : 'other';
+}
 function browserKeyForm(s) {
-  return `${s.ai ? `<p>Your Anthropic API key is saved in this browser only. Model: <span class="mono">${esc(s.model)}</span>.</p><div class="row"><button class="btn danger" id="key-remove" type="button">${icon('trash')} Remove key</button></div>` : '<p>Paste your Anthropic API key to turn on research, summaries, quizzes, the tutor and OCR. Get one at <a href="https://platform.claude.com/" target="_blank" rel="noopener">platform.claude.com</a> → API Keys.</p>'}
-    <form id="key-form" class="stack" style="margin-top:6px">
-      ${s.ai ? '' : '<div class="field"><label for="api-key">API key</label><input id="api-key" class="input" type="password" autocomplete="off" placeholder="sk-ant-…"></div>'}
-      <div class="field"><label for="api-model">Model</label><input id="api-model" class="input" value="${esc(s.model)}"></div>
-      ${s.ai ? '<input id="api-key" type="hidden" value="__keep__">' : ''}
+  const cur = currentProvider(s);
+  return `${s.ai ? `<p>Your API key is saved in this browser only. Provider: <strong>${esc(PROVIDERS.find((p) => p.id === cur).label)}</strong>${s.model ? ` · model <span class="mono">${esc(s.model)}</span>` : ''}.</p><div class="row"><button class="btn danger" id="key-remove" type="button">${icon('trash')} Remove key</button></div>` : '<p>Choose your AI provider and paste your API key.</p>'}
+    <form id="key-form" class="stack" style="margin-top:10px">
+      <div class="field"><span class="label">AI provider</span><div class="seg" id="prov">${PROVIDERS.map((p) => `<button type="button" data-prov="${p.id}" class="${p.id === cur ? 'on' : ''}">${p.label}</button>`).join('')}</div><span class="hint" id="prov-help">${PROVIDERS.find((p) => p.id === cur).help}</span></div>
+      <div class="field" id="base-field" style="${cur === 'other' ? '' : 'display:none'}"><label for="api-base">Base URL</label><input id="api-base" class="input" value="${esc(s.baseURL || '')}" placeholder="https://api.example.com/v1"></div>
+      <div class="field"><label for="api-key">API key${s.ai ? ' (leave empty to keep the saved key)' : ''}</label><input id="api-key" class="input" type="password" autocomplete="off" placeholder="${esc(PROVIDERS.find((p) => p.id === cur).keyHint)}"></div>
+      <div class="field"><label for="api-model">Model</label><input id="api-model" class="input" value="${esc(s.model || '')}" placeholder="${cur === 'anthropic' ? 'claude-opus-5-5' : 'model name from your provider'}"></div>
       <div><button class="btn primary" type="submit">Save</button></div>
-      <p class="muted small" style="margin:0">The key is stored only in this browser (on this device) and is sent only to Anthropic. Anyone using this browser profile could see it, so don't use this on a shared computer. Your books and results are also stored only in this browser.</p>
+      <p class="muted small" style="margin:0">The key is stored only in this browser (on this device) and is sent only to the provider you choose. Anyone using this browser profile could see it, so don't use this on a shared computer. Your books and results are also stored only in this browser.</p>
     </form>`;
 }
 

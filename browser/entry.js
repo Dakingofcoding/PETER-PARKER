@@ -22,6 +22,8 @@ globalThis.fetch = async (input, init = {}) => {
         if (body.apiKey === '') localStorage.removeItem('pps-api-key');
         else if (body.apiKey && body.apiKey !== '__keep__') localStorage.setItem('pps-api-key', body.apiKey);
         if (typeof body.model === 'string') localStorage.setItem('pps-model', body.model);
+        if (typeof body.provider === 'string') localStorage.setItem('pps-provider', body.provider);
+        if (typeof body.baseURL === 'string') localStorage.setItem('pps-base-url', body.baseURL.trim());
       } catch {
         return new Response(JSON.stringify({ error: 'This browser blocks local storage, so the key cannot be saved.' }), { status: 500, headers: { 'content-type': 'application/json' } });
       }
